@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>故事接龙</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="toast" class="toast"></div>
+
+  <!-- ============ 首页 ============ -->
+  <section id="screen-home" class="screen active">
+    <div class="home-card">
+      <h1 class="logo">故事接龙</h1>
+      <p class="slogan">一人一句，共写一个故事</p>
+      <div class="field">
+        <label for="nickname">你的昵称</label>
+        <input type="text" id="nickname" maxlength="12" placeholder="给自己起个名字（12字以内）">
+      </div>
+      <button class="btn primary big" id="btn-create">创建房间</button>
+      <div class="divider"><span>或</span></div>
+      <div class="join-row">
+        <input type="text" id="join-code" maxlength="4" placeholder="房间码" autocomplete="off">
+        <button class="btn primary" id="btn-join">加入房间</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 大厅 ============ -->
+  <section id="screen-lobby" class="screen">
+    <header class="topbar">
+      <span class="back" id="lobby-leave">← 退出</span>
+      <span class="room-code-box">房间码 <b id="lobby-code"></b><button class="copy-btn" id="copy-code" title="复制房间码">复制</button></span>
+    </header>
+    <div class="lobby-layout">
+      <div class="lobby-players card">
+        <h3>玩家列表 <span id="player-count" class="muted"></span></h3>
+        <ul id="player-list"></ul>
+        <p class="muted small">把房间码分享给朋友，输入即可加入</p>
+      </div>
+      <div class="lobby-settings card">
+        <h3>房间设置 <span class="muted small" id="settings-owner-tip"></span></h3>
+
+        <div class="field">
+          <label>游戏模式</label>
+          <div class="seg-control" id="mode-control">
+            <button data-mode="classic" class="active">经典模式</button>
+            <button data-mode="challenge">挑战模式</button>
+            <button data-mode="custom">自定义模式</button>
+          </div>
+          <p class="mode-hint" id="mode-hint"></p>
+        </div>
+
+        <div class="field">
+          <label for="set-theme">主题（可留空）</label>
+          <input type="text" id="set-theme" maxlength="50" placeholder="例如：雨夜的便利店">
+        </div>
+
+        <div class="grid-2">
+          <div class="field">
+            <label for="set-maxplayers">参与人数上限</label>
+            <input type="number" id="set-maxplayers" min="2" max="20" value="8">
+          </div>
+          <div class="field">
+            <label for="set-maxchars">每回合最大字数（20-200）</label>
+            <input type="number" id="set-maxchars" min="20" max="200" value="30">
+          </div>
+          <div class="field">
+            <label for="set-hintchars">提示展示字数</label>
+            <input type="number" id="set-hintchars" min="1" max="50" value="10">
+          </div>
+          <div class="field">
+            <label for="set-rounds">结束轮次（1-20）</label>
+            <input type="number" id="set-rounds" min="1" max="20" value="10">
+          </div>
+        </div>
+
+        <div class="field timed-row">
+          <label class="checkbox-label"><input type="checkbox" id="set-timed"> 开启限时</label>
+          <div id="timed-detail" class="hidden">
+            <label for="set-limitseconds">限时秒数（10-600）</label>
+            <input type="number" id="set-limitseconds" min="10" max="600" value="60">
+            <p class="muted small">超时会自动提交已输入的内容</p>
+          </div>
+        </div>
+
+        <div id="challenge-extra" class="hidden">
+          <div class="field">
+            <label for="set-refreshcount">限制卡刷新次数（0-5）</label>
+            <input type="number" id="set-refreshcount" min="0" max="5" value="1">
+          </div>
+        </div>
+
+        <div id="custom-extra" class="hidden">
+          <div class="field">
+            <label class="checkbox-label"><input type="checkbox" id="set-usebank" checked> 使用默认成语词库</label>
+            <textarea id="set-custombank" rows="3" class="hidden" placeholder="自定义词库：用逗号、顿号或换行分隔，例如：凌霄花，红枫，旧唱片"></textarea>
+          </div>
+          <div class="field">
+            <label class="checkbox-label"><input type="checkbox" id="set-useemotions" checked> 使用默认情绪列表</label>
+            <textarea id="set-customemotions" rows="2" class="hidden" placeholder="自定义情绪：用逗号或换行分隔，例如：狂喜，麻木，怅然"></textarea>
+          </div>
+          <div class="field">
+            <label class="checkbox-label"><input type="checkbox" id="set-techniques" checked> 使用默认文学手法列表</label>
+            <textarea id="set-customtechniques" rows="3" class="hidden" placeholder="自定义文学手法：每行一条，格式「名称：介绍」，例如：蒙太奇：将不同画面拼接，产生新的意味"></textarea>
+          </div>
+        </div>
+
+        <button class="btn primary big" id="btn-start">开始游戏</button>
+        <p class="muted small center" id="start-tip"></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 游戏 ============ -->
+  <section id="screen-game" class="screen">
+    <header class="topbar">
+      <span class="room-code-box small-box">房间 <b id="game-code"></b></span>
+      <span class="round-info" id="round-info"></span>
+      <span class="timer-chip hidden" id="timer-chip"></span>
+    </header>
+
+    <div class="seats" id="seats"></div>
+
+    <div class="game-body">
+      <!-- 我的回合 -->
+      <div id="my-turn-panel" class="card turn-panel hidden">
+        <div class="hint-box">
+          <div class="hint-title" id="hint-title"></div>
+          <div class="hint-text" id="hint-text"></div>
+        </div>
+
+        <div id="card-box" class="limit-card hidden">
+          <div class="card-tag" id="card-tag"></div>
+          <div class="card-content" id="card-content"></div>
+          <div class="card-desc muted small" id="card-desc"></div>
+          <button class="btn ghost small" id="btn-refresh"></button>
+        </div>
+
+        <textarea id="write-area" rows="5" placeholder="继续这个故事……"></textarea>
+        <div class="write-footer">
+          <span id="char-counter" class="muted small"></span>
+          <button class="btn primary" id="btn-submit">提交，传给下一位</button>
+        </div>
+      </div>
+
+      <!-- 等待他人 -->
+      <div id="waiting-panel" class="card turn-panel hidden">
+        <div class="waiting-icon">✍️</div>
+        <p class="waiting-text">等待 <b id="waiting-name"></b> 落笔…</p>
+        <p class="muted small" id="waiting-progress"></p>
+        <p class="muted small" id="my-seat-tip"></p>
+      </div>
+
+      <div class="game-notices">
+        <p id="timeout-notice" class="notice-line hidden">⏱ 本局开启限时，超时会自动提交你已输入的内容</p>
+        <p id="pending-end-notice" class="notice-line hidden">📢 全员投票通过，本段落完成后故事即收尾</p>
+      </div>
+
+      <button class="btn ghost end-vote-btn" id="btn-propose-end">提议提前结束</button>
+    </div>
+  </section>
+
+  <!-- ============ 结果 ============ -->
+  <section id="screen-result" class="screen">
+    <header class="topbar center">
+      <h2 class="result-title">全篇故事</h2>
+    </header>
+    <div class="parchment-wrap">
+      <div class="parchment" id="parchment"></div>
+      <button class="download-btn" id="btn-download" title="下载为 txt">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+      </button>
+    </div>
+    <div class="result-actions">
+      <button class="btn primary" id="btn-again"></button>
+      <button class="btn ghost" id="btn-exit-result">退出房间</button>
+    </div>
+  </section>
+
+  <!-- ============ 投票弹窗 ============ -->
+  <div id="vote-modal" class="modal hidden">
+    <div class="modal-card">
+      <h3>结束投票</h3>
+      <p id="vote-text"></p>
+      <div class="modal-actions" id="vote-actions">
+        <button class="btn primary" id="btn-vote-yes">同意结束</button>
+        <button class="btn ghost" id="btn-vote-no">继续写</button>
+      </div>
+      <p class="muted small" id="vote-status"></p>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
