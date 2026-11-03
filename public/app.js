@@ -179,6 +179,16 @@ function applySettingsToForm(settings, editable) {
 
 function renderLobby() {
   if (!state) return;
+  // 重置上一局残留状态：否则"再来一局"后新回合的 turnKey 与上局相同，
+  // 会保留旧输入内容且 autoSubmitted 卡在 true，导致无法提交
+  lastTurnKey = null;
+  autoSubmitted = false;
+  $('write-area').value = '';
+  $('char-counter').textContent = '';
+  $('btn-submit').disabled = false;
+  stopTimerChip();
+  $('vote-modal').classList.add('hidden');
+
   $('lobby-code').textContent = state.code;
   $('player-count').textContent = `（${state.players.length}/${state.settings.maxPlayers}）`;
 
@@ -362,29 +372,36 @@ function renderResult() {
   if (!state) return;
   stopTimerChip();
   $('vote-modal').classList.add('hidden');
+  const hide = $('hide-extras').checked;
   const box = $('parchment');
   box.innerHTML = '';
   state.segments.forEach((seg, i) => {
+    const framed = !hide && seg.card && seg.card.type !== '关键词';
     const div = document.createElement('div');
-    div.className = 'seg' + (seg.card && seg.card.type !== '关键词' ? ' framed' : '');
-    let head = `<div class="seg-head"><span>${i + 1} · ${escapeHtml(seg.name)}</span>`;
-    if (seg.card) {
-      if (seg.card.type === '关键词') head += `<span class="seg-note">关键词 · ${escapeHtml(seg.card.content)}</span>`;
-      else if (seg.card.type === '情绪') head += `<span class="seg-note">情绪 · ${escapeHtml(seg.card.content)}</span>`;
-      else head += `<span class="seg-note">手法 · ${escapeHtml(seg.card.content)}</span>`;
+    div.className = 'seg' + (framed ? ' framed' : '');
+    let html = '';
+
+    if (!hide) {
+      html += `<div class="seg-head"><span>${i + 1} · ${escapeHtml(seg.name)}</span>`;
+      if (seg.card) {
+        if (seg.card.type === '关键词') html += `<span class="seg-note">关键词 · ${escapeHtml(seg.card.content)}</span>`;
+        else if (seg.card.type === '情绪') html += `<span class="seg-note">情绪 · ${escapeHtml(seg.card.content)}</span>`;
+        else html += `<span class="seg-note">手法 · ${escapeHtml(seg.card.content)}</span>`;
+      }
+      html += '</div>';
     }
-    head += '</div>';
 
     let textHtml;
     if (!seg.text) {
-      textHtml = '<span class="seg-empty">（这一段什么也没留下）</span>';
-    } else if (seg.card && seg.card.type === '关键词') {
+      textHtml = hide ? '……' : '<span class="seg-empty">（这一段什么也没留下）</span>';
+    } else if (!hide && seg.card && seg.card.type === '关键词') {
       const safe = escapeHtml(seg.text);
       textHtml = safe.split(escapeHtml(seg.card.content)).join(`<u>${escapeHtml(seg.card.content)}</u>`);
     } else {
       textHtml = escapeHtml(seg.text);
     }
-    div.innerHTML = head + `<div class="seg-text">${textHtml}</div>`;
+    html += `<div class="seg-text">${textHtml}</div>`;
+    div.innerHTML = html;
     box.appendChild(div);
   });
 
@@ -392,6 +409,10 @@ function renderResult() {
   $('btn-again').disabled = !state.isHost;
   box.scrollTop = 0;
 }
+
+$('hide-extras').addEventListener('change', () => {
+  if (state && state.phase === 'ended') renderResult();
+});
 
 $('btn-again').addEventListener('click', () => {
   if (state && state.isHost) socket.emit('play-again');
@@ -401,13 +422,22 @@ $('btn-exit-result').addEventListener('click', () => $('lobby-leave').click());
 /* ---------- 下载 txt ---------- */
 $('btn-download').addEventListener('click', () => {
   if (!state || state.phase !== 'ended') return;
+  const hide = $('hide-extras').checked;
   const s = state.settings;
   const lines = [];
   lines.push(`【故事接龙】房间 ${state.code}`);
   lines.push(`主题：${s.theme || '（无）'}`);
-  lines.push(`模式：${s.mode === 'classic' ? '经典模式' : s.mode === 'challenge' ? '挑战模式' : '自定义模式'}`);
+  if (!hide) lines.push(`模式：${s.mode === 'classic' ? '经典模式' : s.mode === 'challenge' ? '挑战模式' : '自定义模式'}`);
   lines.push('');
   state.segments.forEach((seg, i) => {
+    if (hide) {
+      // 隐藏附加信息：只输出正文，不显示作者与限制条件
+      if (seg.text) {
+        lines.push(seg.text);
+        lines.push('');
+      }
+      return;
+    }
     lines.push(`— 第 ${i + 1} 段 · ${seg.name} —`);
     lines.push(seg.text || '（这一段什么也没留下）');
     if (seg.card) {

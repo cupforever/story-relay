@@ -391,7 +391,8 @@ body {
   transition: transform 0.12s;
 }
 .download-btn:hover { transform: scale(1.08); }
-.result-actions { display: flex; justify-content: center; gap: 14px; margin-top: 20px; }
+.result-actions { display: flex; justify-content: center; align-items: center; gap: 14px; margin-top: 20px; flex-wrap: wrap; }
+.hide-extras-label { background: var(--surface); border-radius: 999px; padding: 8px 16px; box-shadow: var(--shadow); }
 
 /* ============ 弹窗 ============ */
 .modal {
